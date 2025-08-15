@@ -1,6 +1,3 @@
-// Package storage provides data storage functionality for local and server records.
-// It implements the storage interfaces defined by the handlers layer and manages
-// the persistence and retrieval of record data.
 package storage
 
 import (
@@ -10,21 +7,12 @@ import (
 )
 
 // Storage manages local and server records in memory.
-// It implements the handlers.StorageAdapter interface, providing both
-// read and write operations for local records and server record metadata.
-// This implementation uses in-memory storage with test data for demonstration purposes.
 type Storage struct {
-	// localRecords holds all local records with full data.
-	localRecords []*models.Record
-	// serverRecords holds server record metadata (ID, name, type only).
-	// Full server record content is loaded on-demand and cached separately.
+	localRecords  []*models.Record
 	serverRecords []*models.ServerRecord
 }
 
 // NewStorage creates a new storage instance with predefined test data.
-// The test data includes sample local records and server record metadata
-// to demonstrate the application functionality.
-// In a production environment, this would load data from persistent storage.
 func NewStorage() *Storage {
 	return &Storage{
 		localRecords: []*models.Record{
@@ -46,24 +34,16 @@ func NewStorage() *Storage {
 }
 
 // GetLocalRecords returns all local records.
-// This method implements the StorageReader interface and provides
-// read-only access to the complete list of local records.
 func (s *Storage) GetLocalRecords() []*models.Record {
 	return s.localRecords
 }
 
 // GetServerRecords returns all server record metadata.
-// This method implements the StorageReader interface and provides
-// access to server record metadata (ID, name, type) without full content.
-// Full server record content is loaded separately on-demand.
 func (s *Storage) GetServerRecords() []*models.ServerRecord {
 	return s.serverRecords
 }
 
 // AddLocalRecord adds a new record to local storage.
-// This method implements the StorageWriter interface.
-// If the record doesn't have an ID, it generates a new local ID.
-// The record is marked as not being from server (IsServer = false).
 func (s *Storage) AddLocalRecord(record *models.Record) {
 	if record.ID == "" {
 		record.ID = fmt.Sprintf("local_%d", len(s.localRecords)+1)
@@ -73,17 +53,11 @@ func (s *Storage) AddLocalRecord(record *models.Record) {
 }
 
 // AddServerRecord adds server record metadata to storage.
-// This method implements the StorageWriter interface.
-// It stores only the metadata (ID, name, type) of server records.
-// Full server record content is managed separately through caching.
 func (s *Storage) AddServerRecord(serverRecord *models.ServerRecord) {
 	s.serverRecords = append(s.serverRecords, serverRecord)
 }
 
 // RemoveLocalRecord removes a local record by index.
-// This method implements the StorageWriter interface.
-// Returns the removed record if successful, nil if index is invalid.
-// The caller is responsible for ensuring the index is valid.
 func (s *Storage) RemoveLocalRecord(index int) *models.Record {
 	if index < 0 || index >= len(s.localRecords) {
 		return nil
@@ -94,9 +68,6 @@ func (s *Storage) RemoveLocalRecord(index int) *models.Record {
 }
 
 // RemoveServerRecord removes a server record metadata by index.
-// This method implements the StorageWriter interface.
-// Returns the removed server record metadata if successful, nil if index is invalid.
-// This only removes the metadata; cached content is managed separately.
 func (s *Storage) RemoveServerRecord(index int) *models.ServerRecord {
 	if index < 0 || index >= len(s.serverRecords) {
 		return nil
@@ -107,9 +78,6 @@ func (s *Storage) RemoveServerRecord(index int) *models.ServerRecord {
 }
 
 // CopyToServer creates a copy of a local record for server upload.
-// Returns a clone of the local record at the specified index.
-// Returns nil if the index is invalid.
-// The returned record can be modified without affecting the original.
 func (s *Storage) CopyToServer(index int) *models.Record {
 	if index < 0 || index >= len(s.localRecords) {
 		return nil
@@ -119,9 +87,6 @@ func (s *Storage) CopyToServer(index int) *models.Record {
 }
 
 // CopyToLocal adds a server record to local storage.
-// This method implements the StorageWriter interface.
-// Creates a new local record from the server record data,
-// assigns a new local ID, and marks it as not from server.
 func (s *Storage) CopyToLocal(serverRecord *models.Record) {
 	copy := serverRecord.Clone()
 	copy.ID = fmt.Sprintf("local_%d", len(s.localRecords)+1)
@@ -130,9 +95,6 @@ func (s *Storage) CopyToLocal(serverRecord *models.Record) {
 }
 
 // UpdateLocalRecordServerID updates the server ID of a local record.
-// This method implements the StorageWriter interface.
-// Used when a local record is synchronized with the server and receives a server ID.
-// Returns true if the record was found and updated, false otherwise.
 func (s *Storage) UpdateLocalRecordServerID(localID, serverID string) bool {
 	for _, record := range s.localRecords {
 		if record.ID == localID {
@@ -144,9 +106,6 @@ func (s *Storage) UpdateLocalRecordServerID(localID, serverID string) bool {
 }
 
 // FindLocalRecordByServerID finds a local record by its server ID.
-// This method implements the StorageWriter interface.
-// Used to locate local records that have been synchronized with the server.
-// Returns the record if found, nil otherwise.
 func (s *Storage) FindLocalRecordByServerID(serverID string) *models.Record {
 	for _, record := range s.localRecords {
 		if record.ServerID == serverID {
@@ -157,9 +116,6 @@ func (s *Storage) FindLocalRecordByServerID(serverID string) *models.Record {
 }
 
 // FindServerRecordByID finds server record metadata by server ID.
-// This method implements the StorageWriter interface.
-// Returns the server record metadata if found, nil otherwise.
-// This only returns metadata; full content must be loaded separately.
 func (s *Storage) FindServerRecordByID(serverID string) *models.ServerRecord {
 	for _, record := range s.serverRecords {
 		if record.ID == serverID {
@@ -170,9 +126,6 @@ func (s *Storage) FindServerRecordByID(serverID string) *models.ServerRecord {
 }
 
 // SyncRecords replaces all records with the provided data.
-// This method is used for bulk synchronization operations.
-// It completely replaces both local records and server record metadata.
-// Use with caution as it will overwrite all existing data.
 func (s *Storage) SyncRecords(localRecords []*models.Record, serverRecords []*models.ServerRecord) {
 	s.localRecords = localRecords
 	s.serverRecords = serverRecords

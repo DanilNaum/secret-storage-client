@@ -8,16 +8,16 @@ import "time"
 // UI Labels and Messages contains all user-visible strings.
 const (
 	// Window titles for main UI panels
-	
+
 	// LocalRecordsTitle is the title for the local records panel.
 	LocalRecordsTitle = "Local Records"
 	// ServerRecordsTitle is the title for the server records panel.
 	ServerRecordsTitle = "Server Records"
 	// DetailsTitle is the title for the record details panel.
 	DetailsTitle = "Details"
-	
+
 	// Button labels for various UI actions
-	
+
 	// NewRecordButton is the label for creating new records.
 	NewRecordButton = "F1: New Record"
 	// SyncButton is the label for synchronizing all records.
@@ -32,6 +32,17 @@ const (
 	DeleteButton = "F5: Delete"
 	// RefreshButton is the label for refreshing server records.
 	RefreshButton = "F6: Refresh from Server"
+	// ShowPasswordButtonWithHotKey displays the show password button text with F7 hotkey indicator
+	ShowPasswordButtonWithHotKey = "F7: Show Password"
+	// HidePasswordButtonWithHotKey displays the hide password button text with F7 hotkey indicator
+	HidePasswordButtonWithHotKey = "F7: Hide Password"
+	// ShowPasswordButton displays the show password button text without hotkey indicator
+	ShowPasswordButton = "Show Password"
+	// HidePasswordButton displays the hide password button text without hotkey indicator
+	HidePasswordButton = "Hide Password"
+	// LogoutButton displays the logout button text with F8 hotkey indicator
+	LogoutButton = "F8: Logout"
+
 	// SaveButton is the label for saving form data.
 	SaveButton = "Save"
 	// CancelButton is the label for canceling operations.
@@ -42,9 +53,9 @@ const (
 	NoButton = "No"
 	// OkButton is the label for acknowledgment dialogs.
 	OkButton = "OK"
-	
+
 	// Form field labels
-	
+
 	// NameLabel is the label for record name input field.
 	NameLabel = "Name"
 	// UsernameLabel is the label for username input field.
@@ -55,9 +66,9 @@ const (
 	ContentLabel = "Content"
 	// FilePathLabel is the label for file path input field.
 	FilePathLabel = "File Path"
-	
+
 	// User messages and prompts
-	
+
 	// SelectRecordMessage is shown when no record is selected.
 	SelectRecordMessage = "Select a record to view details"
 	// SelectRecordTypeMessage is shown in record type selection dialog.
@@ -74,9 +85,9 @@ const (
 	DeleteConfirmText = "Are you sure you want to delete this record?"
 	// ErrorTitle is the title for error dialogs.
 	ErrorTitle = "Error"
-	
+
 	// Cache status indicators
-	
+
 	// CachedIndicator shows that record data is cached and current.
 	CachedIndicator = "[blue](cached)[-]"
 	// ExpiredIndicator shows that cached record data has expired.
@@ -85,9 +96,9 @@ const (
 	LoadingIndicator = "Loading..."
 	// CacheTimeFormat is the format string for displaying cache timestamps.
 	CacheTimeFormat = "[gray]Cached: %s[-]\n"
-	
+
 	// Record type display names
-	
+
 	// CredentialsType is the display name for credentials records.
 	CredentialsType = "Credentials"
 	// TextType is the display name for text data records.
@@ -96,18 +107,18 @@ const (
 	FileType = "File"
 	// UnknownType is the display name for unrecognized record types.
 	UnknownType = "Unknown"
-	
+
 	// Format strings for dynamic content
-	
+
 	// TypeFieldLabel formats the type information in record lists.
 	TypeFieldLabel = "Type: %s"
 	// RecordCountFormat formats the title with record count and hints.
 	RecordCountFormat = "%s (%d) - %s"
 	// ActiveTitleFormat formats titles for active panels.
 	ActiveTitleFormat = "[green]%s %s[-]"
-	
+
 	// Detail view format strings
-	
+
 	// DetailNameLabel formats the name field in record details.
 	DetailNameLabel = "[yellow]Name:[-] %s\n"
 	// DetailTypeLabel formats the type field in record details.
