@@ -10,6 +10,7 @@ import (
 	"github.com/DanilNaum/secret-storage-client/internal/storage"
 	"github.com/DanilNaum/secret-storage-client/internal/ui"
 	"github.com/DanilNaum/secret-storage-client/pkg/cache"
+	"github.com/rivo/tview"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	
 	serverHandlers := serverhandlers.NewServerHandlers(stor, serverCache, serverURL)
 	
-	app := ui.NewApp(stor, localHandlers, serverHandlers)
+	app := ui.NewApp(stor, localHandlers, serverHandlers, tview.NewPages())
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -39,8 +39,8 @@ type StorageAdapter interface {
 
 // ServerHandlers defines all event handlers for server record operations.
 type ServerHandlers struct {
-	storage         StorageReader
-	writer          StorageWriter
+	// storage         StorageReader
+	// writer          StorageWriter
 	cache           CacheManager
 	serverURL       string
 	authToken       string
@@ -52,8 +52,8 @@ type ServerHandlers struct {
 // NewServerHandlers creates server handlers with storage and cache adapters.
 func NewServerHandlers(storage StorageAdapter, cache CacheManager, serverURL string) *ServerHandlers {
 	return &ServerHandlers{
-		storage:         storage,
-		writer:          storage,
+		// storage:         storage,
+		// writer:          storage,
 		cache:           cache,
 		serverURL:       serverURL,
 		authToken:       "",
@@ -74,9 +74,9 @@ func (h *ServerHandlers) Authenticate(username, password string) error {
 }
 
 // Register performs user registration with the server.
-func (h *ServerHandlers) Register(username, password string) (string, error) {
+func (h *ServerHandlers) Register(username, password string) error {
 	if username == "" || password == "" {
-		return "", errors.New("username and password cannot be empty")
+		return errors.New("username and password cannot be empty")
 	}
 
 	salt := fmt.Sprintf("salt_%s_%d", username, time.Now().Unix())
@@ -84,14 +84,13 @@ func (h *ServerHandlers) Register(username, password string) (string, error) {
 	h.isAuthenticated = true
 	h.salt = salt
 
-	return salt, nil
+	return nil
 }
 
 // SetMasterPassword sets the master password for encryption.
 func (h *ServerHandlers) SetMasterPassword(password string) {
 	h.masterPassword = password
 }
-
 
 // Logout performs user logout.
 func (h *ServerHandlers) Logout() error {
@@ -107,7 +106,6 @@ func (h *ServerHandlers) IsAuthenticated() bool {
 	return h.isAuthenticated
 }
 
-
 // GetCachedRecord retrieves a record from cache with metadata.
 func (h *ServerHandlers) GetCachedRecord(id string) (*models.Record, bool, time.Time, bool) {
 	record, found, cachedAt := h.cache.Get(id)
@@ -120,29 +118,13 @@ func (h *ServerHandlers) SetCachedRecord(id string, record *models.Record) {
 	h.cache.Set(id, record)
 }
 
-
-
-
 // DeleteServerRecord deletes a server record.
 func (h *ServerHandlers) DeleteServerRecord(record *models.Record) error {
 	if !h.isAuthenticated {
 		return errors.New("not authenticated")
 	}
 
-	serverRecords := h.storage.GetServerRecords()
-	for i, r := range serverRecords {
-		if r.ID == record.ServerID {
-			h.writer.RemoveServerRecord(i)
-			h.cache.Remove(record.ServerID)
-
-			if localRecord := h.writer.FindLocalRecordByServerID(record.ServerID); localRecord != nil {
-				localRecord.ServerID = ""
-			}
-
-			return nil
-		}
-	}
-	return errors.New("server record not found")
+	return errors.New("not implemented")
 }
 
 // ServerRecordChange updates an existing server record.
@@ -153,15 +135,7 @@ func (h *ServerHandlers) ServerRecordChange(record *models.Record) error {
 
 	h.cache.Set(record.ServerID, record)
 
-	if localRecord := h.writer.FindLocalRecordByServerID(record.ServerID); localRecord != nil {
-		localRecord.Name = record.Name
-		localRecord.Type = record.Type
-		localRecord.Username = record.Username
-		localRecord.Password = record.Password
-		localRecord.TextContent = record.TextContent
-		localRecord.FilePath = record.FilePath
-	}
-
+	
 	return errors.New("server record modification not implemented")
 }
 
@@ -187,51 +161,28 @@ func (h *ServerHandlers) RefreshServerRecord(serverID string) (*models.Record, e
 	return nil, errors.New("server record refresh not implemented")
 }
 
-// ServerRecordMovedToLocal downloads a server record to local storage.
-func (h *ServerHandlers) ServerRecordMovedToLocal(record *models.Record) error {
-	if !h.isAuthenticated {
-		return errors.New("not authenticated")
-	}
 
-	if existingRecord := h.writer.FindLocalRecordByServerID(record.ServerID); existingRecord != nil {
-		existingRecord.Name = record.Name
-		existingRecord.Type = record.Type
-		existingRecord.Username = record.Username
-		existingRecord.Password = record.Password
-		existingRecord.TextContent = record.TextContent
-		existingRecord.FilePath = record.FilePath
-	} else {
-		newRecord := record.Clone()
-		newRecord.ID = fmt.Sprintf("local_%d", len(h.storage.GetLocalRecords())+1)
-		newRecord.ServerID = record.ServerID
-		newRecord.IsServer = false
-		h.writer.AddLocalRecord(newRecord)
-	}
-
-	return nil
-}
 
 // Sync performs full synchronization between local and server storage.
-func (h *ServerHandlers) Sync() error {
+func (h *ServerHandlers) Sync(localRecords []*models.Record) (map[string]string, error) {
 	if !h.isAuthenticated {
-		return errors.New("not authenticated")
+		return nil, errors.New("not authenticated")
 	}
 
-	localRecords := h.storage.GetLocalRecords()
+	ids := make(map[string]string, len(localRecords))
+
 	for _, record := range localRecords {
 		if !record.HasServerID() {
+
+			// TODO: get serverID and save record
 			serverID := fmt.Sprintf("server_%s", record.ID)
 
-			serverRecord := &models.ServerRecord{
-				ID:   serverID,
-				Name: record.Name,
-				Type: record.Type,
-			}
-			h.writer.AddServerRecord(serverRecord)
+		
+			ids[record.ID] = serverID
 		}
 	}
 
-	return nil
+	return  ids,nil
 }
 
 // GetServerURL returns the server URL.
@@ -242,4 +193,8 @@ func (h *ServerHandlers) GetServerURL() string {
 // SetServerURL sets the server URL.
 func (h *ServerHandlers) SetServerURL(url string) {
 	h.serverURL = url
+}
+
+func (h *ServerHandlers) LocalRecordMovedToServer(record *models.Record)(string, error){
+	return  "", errors.New("server record moved to local not implemented")
 }

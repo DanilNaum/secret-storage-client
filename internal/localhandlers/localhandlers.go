@@ -2,7 +2,6 @@ package localhandlers
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/DanilNaum/secret-storage-client/internal/models"
 )
@@ -16,6 +15,7 @@ type StorageReader interface {
 type StorageWriter interface {
 	AddLocalRecord(record *models.Record)
 	RemoveLocalRecord(index int) *models.Record
+	FindLocalRecordByServerID(serverID string) *models.Record
 	UpdateLocalRecordServerID(localID, serverID string) bool
 }
 
@@ -41,6 +41,7 @@ func NewLocalHandlers(storage StorageAdapter) *LocalHandlers {
 
 // CreateRecord creates a new local record.
 func (h *LocalHandlers) CreateRecord(record *models.Record) error {
+	
 	h.writer.AddLocalRecord(record)
 	return nil
 }
@@ -81,8 +82,27 @@ func (h *LocalHandlers) LocalRecordOpen(id string) (*models.Record, error) {
 }
 
 // LocalRecordMovedToServer uploads a local record to the server.
-func (h *LocalHandlers) LocalRecordMovedToServer(record *models.Record) error {
-	serverID := fmt.Sprintf("server_%s", record.ID)
+func (h *LocalHandlers) LocalRecordMovedToServer(record *models.Record, serverID string) error {
 	h.writer.UpdateLocalRecordServerID(record.ID, serverID)
+	return nil
+}
+
+// ServerRecordMovedToLocal downloads a server record to local storage.
+func (h *LocalHandlers) ServerRecordMovedToLocal(record *models.Record) error {
+	if existingRecord := h.writer.FindLocalRecordByServerID(record.ServerID); existingRecord != nil {
+		existingRecord.Name = record.Name
+		existingRecord.Type = record.Type
+		existingRecord.Username = record.Username
+		existingRecord.Password = record.Password
+		existingRecord.TextContent = record.TextContent
+		existingRecord.FilePath = record.FilePath
+	} else {
+		newRecord := record.Clone()
+		newRecord.ServerID = record.ServerID
+		record.ID = ""
+		newRecord.IsServer = true
+		h.writer.AddLocalRecord(newRecord)
+	}
+
 	return nil
 }

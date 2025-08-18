@@ -8,159 +8,149 @@ import (
 
 func (a *App) showAuthChoice() {
 	modal := tview.NewModal().
-		SetText("Welcome to Secret Storage Client!\n\nChoose action:").
-		AddButtons([]string{"Login", "Register", "Exit"}).
+		SetText(constants.WelcomeMessage).
+		AddButtons([]string{constants.LoginButton, constants.RegisterButton, constants.ExitButton}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			switch buttonLabel {
-			case "Login":
+			case constants.LoginButton:
 				a.showLoginForm()
-			case "Register":
+			case constants.RegisterButton:
 				a.showRegistrationForm()
-			case "Exit":
+			case constants.ExitButton:
 				a.app.Stop()
 			}
 		})
 
-	a.pages.AddAndSwitchToPage("authChoice", modal, true)
+	a.pages.AddAndSwitchToPage(constants.AuthChoicePageName, modal, true)
 }
 
 func (a *App) showLoginForm() {
 	form := tview.NewForm()
 
-	usernameField := tview.NewInputField().SetLabel("Username").SetFieldWidth(20)
-	passwordField := tview.NewInputField().SetLabel("Password").SetFieldWidth(20).SetMaskCharacter('*')
+	usernameField := tview.NewInputField().SetLabel(constants.UsernameLabel).SetFieldWidth(20)
+	passwordField := tview.NewInputField().SetLabel(constants.PasswordLabel).SetFieldWidth(20).SetMaskCharacter(constants.PasswordMask)
 
 	form.AddFormItem(usernameField).
 		AddFormItem(passwordField).
-		AddButton("Login", func() {
+		AddButton(constants.LoginButton, func() {
 			username := usernameField.GetText()
 			password := passwordField.GetText()
 
 			if username == "" || password == "" {
-				form.SetTitle("Error: Fill all fields")
+				form.SetTitle(constants.ErrorFillAllFields)
 				return
 			}
 
 			err := a.serverHandlers.Authenticate(username, password)
 			if err != nil {
-				form.SetTitle("Error: " + err.Error())
+				form.SetTitle(constants.ErrorTitle + ": " + err.Error())
 				return
 			}
 
 			a.showMasterPasswordForm()
 		}).
-		AddButton("Back", func() {
-			a.pages.RemovePage("login")
+		AddButton(constants.BackButton, func() {
+			a.pages.RemovePage(constants.LoginPageName)
 			a.showAuthChoice()
 		})
 
-	form.SetBorder(true).SetTitle("Login").SetTitleAlign(tview.AlignLeft)
-	a.pages.AddAndSwitchToPage("login", form, true)
+	form.SetBorder(true).SetTitle(constants.LoginTitle).SetTitleAlign(tview.AlignLeft)
+	a.pages.AddAndSwitchToPage(constants.LoginPageName, form, true)
 }
 
 func (a *App) showRegistrationForm() {
 	form := tview.NewForm()
 
-	usernameField := tview.NewInputField().SetLabel("Username").SetFieldWidth(20)
-	passwordField := tview.NewInputField().SetLabel("Password").SetFieldWidth(20).SetMaskCharacter('*')
-	confirmPasswordField := tview.NewInputField().SetLabel("Confirm Password").SetFieldWidth(20).SetMaskCharacter('*')
+	usernameField := tview.NewInputField().SetLabel(constants.UsernameLabel).SetFieldWidth(20)
+	passwordField := tview.NewInputField().SetLabel(constants.PasswordLabel).SetFieldWidth(20).SetMaskCharacter(constants.PasswordMask)
+	confirmPasswordField := tview.NewInputField().SetLabel(constants.ConfirmPasswordLabel).SetFieldWidth(20).SetMaskCharacter(constants.PasswordMask)
 
 	form.AddFormItem(usernameField).
 		AddFormItem(passwordField).
 		AddFormItem(confirmPasswordField).
-		AddButton("Register", func() {
+		AddButton(constants.RegisterButton, func() {
 			username := usernameField.GetText()
 			password := passwordField.GetText()
 			confirmPassword := confirmPasswordField.GetText()
 
 			if username == "" || password == "" || confirmPassword == "" {
-				form.SetTitle("Error: Fill all fields")
+				form.SetTitle(constants.ErrorFillAllFields)
 				return
 			}
 
 			if password != confirmPassword {
-				form.SetTitle("Error: Passwords do not match")
+				form.SetTitle(constants.ErrorPasswordsDoNotMatch)
 				return
 			}
 
 			if len(password) < 6 {
-				form.SetTitle("Error: Password must be at least 6 characters")
+				form.SetTitle(constants.ErrorPasswordTooShort)
 				return
 			}
 
-			salt, err := a.serverHandlers.Register(username, password)
+			err := a.serverHandlers.Register(username, password)
 			if err != nil {
-				form.SetTitle("Error: " + err.Error())
+				form.SetTitle(constants.ErrorTitle + ": " + err.Error())
 				return
 			}
 
-			a.showRegistrationSuccess(salt)
+			a.showMasterPasswordForm()
 		}).
-		AddButton("Back", func() {
-			a.pages.RemovePage("register")
+		AddButton(constants.BackButton, func() {
+			a.pages.RemovePage(constants.RegisterPageName)
 			a.showAuthChoice()
 		})
 
-	form.SetBorder(true).SetTitle("Registration").SetTitleAlign(tview.AlignLeft)
-	a.pages.AddAndSwitchToPage("register", form, true)
+	form.SetBorder(true).SetTitle(constants.RegistrationTitle).SetTitleAlign(tview.AlignLeft)
+	a.pages.AddAndSwitchToPage(constants.RegisterPageName, form, true)
 }
 
-func (a *App) showRegistrationSuccess(salt string) {
-	modal := tview.NewModal().
-		SetText("Registration successful!\n\nSalt received from server: " + salt + "\n\nPress OK to continue.").
-		AddButtons([]string{"OK"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.pages.RemovePage("registerSuccess")
-			a.showMasterPasswordForm()
-		})
 
-	a.pages.AddAndSwitchToPage("registerSuccess", modal, true)
-}
 
 func (a *App) showMasterPasswordForm() {
 	form := tview.NewForm()
 
-	masterPasswordField := tview.NewInputField().SetLabel("Master Password").SetFieldWidth(20).SetMaskCharacter('*')
-	confirmMasterPasswordField := tview.NewInputField().SetLabel("Confirm Master Password").SetFieldWidth(20).SetMaskCharacter('*')
+	masterPasswordField := tview.NewInputField().SetLabel(constants.MasterPasswordLabel).SetFieldWidth(20).SetMaskCharacter(constants.PasswordMask)
+	confirmMasterPasswordField := tview.NewInputField().SetLabel(constants.ConfirmMasterPasswordLabel).SetFieldWidth(20).SetMaskCharacter(constants.PasswordMask)
 
 	form.AddFormItem(masterPasswordField).
 		AddFormItem(confirmMasterPasswordField).
-		AddButton("Continue", func() {
+		AddButton(constants.ContinueButton, func() {
 			masterPassword := masterPasswordField.GetText()
 			confirmMasterPassword := confirmMasterPasswordField.GetText()
 
 			if masterPassword == "" || confirmMasterPassword == "" {
-				form.SetTitle("Error: Fill all fields")
+				form.SetTitle(constants.ErrorFillAllFields)
 				return
 			}
 
 			if masterPassword != confirmMasterPassword {
-				form.SetTitle("Error: Passwords do not match")
+				form.SetTitle(constants.ErrorPasswordsDoNotMatch)
 				return
 			}
 
 			if len(masterPassword) < 8 {
-				form.SetTitle("Error: Master password must be at least 8 characters")
+				form.SetTitle(constants.ErrorMasterPasswordTooShort)
 				return
 			}
 
 			a.serverHandlers.SetMasterPassword(masterPassword)
 
-			a.pages.RemovePage("login")
-			a.pages.RemovePage("register")
-			a.pages.RemovePage("authChoice")
-			a.pages.RemovePage("registerSuccess")
-			a.pages.RemovePage("masterPassword")
+			a.pages.RemovePage(constants.LoginPageName)
+			a.pages.RemovePage(constants.RegisterPageName)
+			a.pages.RemovePage(constants.AuthChoicePageName)
+			a.pages.RemovePage(constants.RegisterSuccessPageName)
+			a.pages.RemovePage(constants.MasterPasswordPageName)
 
 			a.createMainUI()
 		}).
-		AddButton("Back", func() {
-			a.pages.RemovePage("masterPassword")
+		AddButton(constants.BackButton, func() {
+			a.pages.RemovePage(constants.MasterPasswordPageName)
 			a.showAuthChoice()
 		})
 
-	form.SetBorder(true).SetTitle("Master Password Setup").SetTitleAlign(tview.AlignLeft)
-	a.pages.AddAndSwitchToPage("masterPassword", form, true)
+	form.SetBorder(true).SetTitle(constants.MasterPasswordTitle).SetTitleAlign(tview.AlignLeft)
+	a.pages.AddAndSwitchToPage(constants.MasterPasswordPageName, form, true)
 }
 
 func (a *App) logout() {

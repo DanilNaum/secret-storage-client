@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/DanilNaum/secret-storage-client/internal/constants"
@@ -20,12 +21,13 @@ type localHandlers interface {
 	CreateRecord(record *models.Record) error
 	DeleteLocalRecord(record *models.Record) error
 	LocalRecordChange(record *models.Record) error
-	LocalRecordMovedToServer(record *models.Record) error
+	LocalRecordMovedToServer(record *models.Record, serverID string) error
+	ServerRecordMovedToLocal(record *models.Record) error
 }
 
 type serverHandlers interface {
 	Authenticate(username, password string) error
-	Register(username, password string) (string, error)
+	Register(username, password string) error
 	Logout() error
 	IsAuthenticated() bool
 
@@ -34,19 +36,39 @@ type serverHandlers interface {
 	DeleteServerRecord(record *models.Record) error
 	ServerRecordChange(record *models.Record) error
 	ServerRecordOpen(id string) (*models.Record, error)
-	ServerRecordMovedToLocal(record *models.Record) error
+
 	RefreshServerRecord(id string) (*models.Record, error)
 
-	Sync() error
+	Sync([]*models.Record) (map[string]string, error)
 
 	GetCachedRecord(id string) (*models.Record, bool, time.Time, bool)
 	SetCachedRecord(id string, record *models.Record)
+
+	LocalRecordMovedToServer(record *models.Record) (string, error)
+}
+
+//go:generate moq -out pages_moq_test.go . pages
+type pages interface {
+	AddAndSwitchToPage(name string, item tview.Primitive, resize bool) *tview.Pages
+	AddPage(name string, item tview.Primitive, resize bool, visible bool) *tview.Pages
+	Blur()
+	Draw(tcell.Screen)
+	Focus(delegate func(p tview.Primitive))
+	GetFrontPage() (name string, item tview.Primitive)
+	GetRect() (int, int, int, int)
+	HasFocus() bool
+	InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive))
+	MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive)
+	RemovePage(name string) *tview.Pages
+	SetRect(x int, y int, width int, height int)
+	SetTitle(title string) *tview.Box
+	SwitchToPage(name string) *tview.Pages
 }
 
 // App represents the main application UI controller.
 type App struct {
 	app   *tview.Application
-	pages *tview.Pages
+	pages pages
 	flex  *tview.Flex
 
 	storage        storageReader
@@ -66,10 +88,10 @@ type App struct {
 }
 
 // NewApp creates a new application instance with the provided dependencies.
-func NewApp(storage storageReader, localHandlers localHandlers, serverHandlers serverHandlers) *App {
+func NewApp(storage storageReader, localHandlers localHandlers, serverHandlers serverHandlers, pages pages) *App {
 	return &App{
 		app:            tview.NewApplication(),
-		pages:          tview.NewPages(),
+		pages:          pages,
 		storage:        storage,
 		localHandlers:  localHandlers,
 		serverHandlers: serverHandlers,
@@ -421,14 +443,23 @@ func (a *App) copySelectedRecord() {
 	var err error
 
 	if a.currentIsServer {
-		err = a.serverHandlers.ServerRecordMovedToLocal(a.currentRecord)
+		err = a.localHandlers.ServerRecordMovedToLocal(a.currentRecord)
+		if err != nil {
+			a.showError(err.Error())
+			return
+		}
 	} else {
-		err = a.localHandlers.LocalRecordMovedToServer(a.currentRecord)
-	}
+		serverID, err := a.serverHandlers.LocalRecordMovedToServer(a.currentRecord)
+		if err != nil {
+			a.showError(err.Error())
+			return
+		}
+		err = a.localHandlers.LocalRecordMovedToServer(a.currentRecord, serverID)
+		if err != nil {
+			a.showError(err.Error())
+			return
+		}
 
-	if err != nil {
-		a.showError(err.Error())
-		return
 	}
 
 	a.updateLocalList()
@@ -478,7 +509,11 @@ func (a *App) performDelete() {
 }
 
 func (a *App) syncRecords() {
-	err := a.serverHandlers.Sync()
+	localRecords := a.storage.GetLocalRecords()
+	serverIDs, err := a.serverHandlers.Sync(localRecords)
+	for _, localRecord := range localRecords{
+		localRecord.ServerID = serverIDs[localRecord.ID]
+	}
 	if err != nil {
 		a.showError(err.Error())
 		return

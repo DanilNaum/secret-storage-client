@@ -53,6 +53,47 @@ const (
 	NoButton = "No"
 	// OkButton is the label for acknowledgment dialogs.
 	OkButton = "OK"
+	// LoginButton is the label for login action.
+	LoginButton = "Login"
+	// RegisterButton is the label for register action.
+	RegisterButton = "Register"
+	// ExitButton is the label for exit action.
+	ExitButton = "Exit"
+	// BackButton is the label for back action.
+	BackButton = "Back"
+	// ContinueButton is the label for continue action.
+	ContinueButton = "Continue"
+
+	// Authentication-specific labels and messages
+
+	// WelcomeMessage is the welcome text shown in auth choice dialog.
+	WelcomeMessage = "Welcome to Secret Storage Client!\n\nChoose action:"
+	// ConfirmPasswordLabel is the label for password confirmation field.
+	ConfirmPasswordLabel = "Confirm Password"
+	// MasterPasswordLabel is the label for master password field.
+	MasterPasswordLabel = "Master Password"
+	// ConfirmMasterPasswordLabel is the label for master password confirmation field.
+	ConfirmMasterPasswordLabel = "Confirm Master Password"
+
+	// Authentication form titles
+
+	// LoginTitle is the title for login form.
+	LoginTitle = "Login"
+	// RegistrationTitle is the title for registration form.
+	RegistrationTitle = "Registration"
+	// MasterPasswordTitle is the title for master password setup form.
+	MasterPasswordTitle = "Master Password Setup"
+
+	// Authentication error messages
+
+	// ErrorFillAllFields is shown when required fields are empty.
+	ErrorFillAllFields = "Error: Fill all fields"
+	// ErrorPasswordsDoNotMatch is shown when passwords don't match.
+	ErrorPasswordsDoNotMatch = "Error: Passwords do not match"
+	// ErrorPasswordTooShort is shown when password is too short.
+	ErrorPasswordTooShort = "Error: Password must be at least 6 characters"
+	// ErrorMasterPasswordTooShort is shown when master password is too short.
+	ErrorMasterPasswordTooShort = "Error: Master password must be at least 8 characters"
 
 	// Form field labels
 
@@ -163,6 +204,16 @@ const (
 	TypeSelectPageName = "typeSelect"
 	// ErrorPageName is the identifier for error display dialogs.
 	ErrorPageName = "error"
+	// AuthChoicePageName is the identifier for the authentication choice page.
+	AuthChoicePageName = "authChoice"
+	// LoginPageName is the identifier for the login form page.
+	LoginPageName = "login"
+	// RegisterPageName is the identifier for the registration form page.
+	RegisterPageName = "register"
+	// RegisterSuccessPageName is the identifier for the registration success page.
+	RegisterSuccessPageName = "registerSuccess"
+	// MasterPasswordPageName is the identifier for the master password setup page.
+	MasterPasswordPageName = "masterPassword"
 )
 
 // Cache configuration defines the behavior of the server record cache.
