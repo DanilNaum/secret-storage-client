@@ -21,7 +21,7 @@ const (
 	// NewRecordButton is the label for creating new records.
 	NewRecordButton = "F1: New Record"
 	// SyncButton is the label for synchronizing all records.
-	SyncButton = "F2: Sync Lists"
+	UpdateServerRecordListButton = "F2: Update Server Record Lists"
 	// EditButton is the label for editing existing records.
 	EditButton = "F3: Edit"
 	// CopyToLocalButton is the label for copying server records to local storage.

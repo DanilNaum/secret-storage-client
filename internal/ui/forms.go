@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strconv"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
@@ -130,4 +132,51 @@ func (a *App) saveRecord(record *models.Record, isNew bool) {
 	a.pages.SwitchToPage(constants.MainPageName)
 	a.updateLocalList()
 	a.updateServerList()
+}
+
+func (a *App) downloadFileForm(record *models.Record) {
+	form := tview.NewForm()
+	form.Clear(true)
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		return event
+	})
+	var path string
+	filePathField := tview.NewInputField().SetLabel("file path").SetFieldWidth(constants.InputFieldWidth)
+	filePathField.SetChangedFunc(func(text string) {
+		path = text
+	})
+	form.AddFormItem(filePathField)
+
+	progressFeeler := tview.NewTextView().SetLabel("Прогресс:")
+
+	form.AddFormItem(progressFeeler)
+
+	form.AddButton("download", func() {
+		progress, errChan := a.serverHandlers.DownloadFile(record.ServerID, path)
+		LOOP:for {
+			select {
+			case progress, ok := <-progress:
+				if !ok {
+					break LOOP
+				}
+				progressFeeler.SetText(strconv.Itoa(progress) + "%")
+			case err, ok := <-errChan:
+				if !ok {
+					break LOOP
+				}
+				if err != nil {
+					a.showError(err.Error())
+					return
+				}
+			}
+		}
+		a.pages.SwitchToPage(constants.MainPageName)
+
+	})
+	form.AddButton("cancel", func() {
+		a.pages.SwitchToPage(constants.MainPageName)
+	})
+	a.pages.AddAndSwitchToPage(constants.FormPageName, form, true)
+
 }

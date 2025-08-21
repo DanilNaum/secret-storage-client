@@ -20,9 +20,12 @@ func main() {
 	
 	localHandlers := localhandlers.NewLocalHandlers(stor)
 	
-	serverURL := "https://api.secretstorage.com"
+	serverURL := "localhost:9090"
 	
-	serverHandlers := serverhandlers.NewServerHandlers(stor, serverCache, serverURL)
+	serverHandlers, err := serverhandlers.NewServerHandlers(stor, serverCache, serverURL)
+	if err != nil {
+		log.Fatal(err)
+	}
 	
 	app := ui.NewApp(stor, localHandlers, serverHandlers, tview.NewPages())
 	if err := app.Run(); err != nil {

@@ -1,11 +1,11 @@
 package serverhandlers
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/DanilNaum/secret-storage-client/internal/models"
+	"github.com/DanilNaum/secret-storage-client/pkg/client"
 )
 
 // StorageReader defines the interface for reading storage data.
@@ -18,9 +18,8 @@ type StorageReader interface {
 type StorageWriter interface {
 	AddLocalRecord(record *models.Record)
 	AddServerRecord(serverRecord *models.ServerRecord)
-	RemoveServerRecord(index int) *models.ServerRecord
-	FindLocalRecordByServerID(serverID string) *models.Record
-	FindServerRecordByID(serverID string) *models.ServerRecord
+	RemoveServerRecord(serverID string) *models.ServerRecord
+	SetServerRecords(records []*models.ServerRecord)
 }
 
 // CacheManager defines the interface for cache operations.
@@ -39,71 +38,57 @@ type StorageAdapter interface {
 
 // ServerHandlers defines all event handlers for server record operations.
 type ServerHandlers struct {
-	// storage         StorageReader
-	// writer          StorageWriter
-	cache           CacheManager
-	serverURL       string
-	authToken       string
-	isAuthenticated bool
-	masterPassword  string
-	salt            string
+	*client.ServerClient
+	cache   CacheManager
+	storage StorageAdapter
 }
 
 // NewServerHandlers creates server handlers with storage and cache adapters.
-func NewServerHandlers(storage StorageAdapter, cache CacheManager, serverURL string) *ServerHandlers {
+func NewServerHandlers(storage StorageAdapter, cache CacheManager, serverURL string) (*ServerHandlers, error) {
+	// Create gRPC client wrapper
+	grpcClient, err := client.NewServerClient(serverURL, false) // Use TLS by default
+	if err != nil {
+		// In case of error, create a placeholder client that will show error messages
+		fmt.Printf("failed to create gRPC client: %v. Using placeholder client.", err)
+
+	}
+
 	return &ServerHandlers{
-		// storage:         storage,
-		// writer:          storage,
-		cache:           cache,
-		serverURL:       serverURL,
-		authToken:       "",
-		isAuthenticated: false,
-		masterPassword:  "",
-		salt:            "",
-	}
+		ServerClient: grpcClient,
+		cache:        cache,
+		storage:      storage,
+	}, nil
 }
 
-// Authenticate performs user authentication with the server.
-func (h *ServerHandlers) Authenticate(username, password string) error {
-	if username == "admin" && password == "password" {
-		h.authToken = "simulated_token_12345"
-		h.isAuthenticated = true
-		return nil
+func (h *ServerHandlers) DeleteServerRecord(record *models.Record) error {
+	err := h.ServerClient.DeleteServerRecord(record)
+	if err != nil {
+		return err
 	}
-	return errors.New("invalid credentials")
-}
+	h.cache.Remove(record.ServerID)
 
-// Register performs user registration with the server.
-func (h *ServerHandlers) Register(username, password string) error {
-	if username == "" || password == "" {
-		return errors.New("username and password cannot be empty")
-	}
-
-	salt := fmt.Sprintf("salt_%s_%d", username, time.Now().Unix())
-	h.authToken = "simulated_token_12345"
-	h.isAuthenticated = true
-	h.salt = salt
+	// Удаляем запись из хранилища по ID
+	h.storage.RemoveServerRecord(record.ServerID)
 
 	return nil
 }
 
-// SetMasterPassword sets the master password for encryption.
-func (h *ServerHandlers) SetMasterPassword(password string) {
-	h.masterPassword = password
-}
+func (h *ServerHandlers) LocalRecordMovedToServer(record *models.Record) (string, error) {
+	serverID, err := h.ServerClient.LocalRecordMovedToServer(record)
+	if err != nil {
+		return "", err
+	}
+	serverRecord := record.Clone()
+	serverRecord.IsServer = true
+	serverRecord.ServerID = serverID
+	h.cache.Set(serverID, serverRecord)
+	h.storage.AddServerRecord(&models.ServerRecord{
+		ID:   serverID,
+		Name: serverRecord.Name,
+		Type: serverRecord.Type,
+	})
 
-// Logout performs user logout.
-func (h *ServerHandlers) Logout() error {
-	h.authToken = ""
-	h.isAuthenticated = false
-	h.masterPassword = ""
-	h.salt = ""
-	return nil
-}
-
-// IsAuthenticated returns the authentication status.
-func (h *ServerHandlers) IsAuthenticated() bool {
-	return h.isAuthenticated
+	return serverID, nil
 }
 
 // GetCachedRecord retrieves a record from cache with metadata.
@@ -118,83 +103,52 @@ func (h *ServerHandlers) SetCachedRecord(id string, record *models.Record) {
 	h.cache.Set(id, record)
 }
 
-// DeleteServerRecord deletes a server record.
-func (h *ServerHandlers) DeleteServerRecord(record *models.Record) error {
-	if !h.isAuthenticated {
-		return errors.New("not authenticated")
-	}
-
-	return errors.New("not implemented")
-}
-
 // ServerRecordChange updates an existing server record.
 func (h *ServerHandlers) ServerRecordChange(record *models.Record) error {
-	if !h.isAuthenticated {
-		return errors.New("not authenticated")
-	}
 
+	err := h.ServerClient.ServerRecordChange(record)
+	if err != nil {
+		return err
+	}
 	h.cache.Set(record.ServerID, record)
 
-	
-	return errors.New("server record modification not implemented")
+	return nil
 }
 
 // ServerRecordOpen loads a server record by ID.
 func (h *ServerHandlers) ServerRecordOpen(serverID string) (*models.Record, error) {
-	if !h.isAuthenticated {
-		return nil, errors.New("not authenticated")
-	}
 
 	if cachedRecord, found, _ := h.cache.Get(serverID); found {
 		return cachedRecord, nil
 	}
+	record, err := h.ServerClient.ServerRecordOpen(serverID)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, errors.New("server record loading not implemented")
+	return record, nil
 }
 
 // RefreshServerRecord forces a refresh of a server record from the server.
 func (h *ServerHandlers) RefreshServerRecord(serverID string) (*models.Record, error) {
-	if !h.isAuthenticated {
-		return nil, errors.New("not authenticated")
+	record, err := h.ServerClient.ServerRecordOpen(serverID)
+	if err != nil {
+		return nil, err
 	}
-
-	return nil, errors.New("server record refresh not implemented")
+	return record, nil
 }
 
-
-
-// Sync performs full synchronization between local and server storage.
-func (h *ServerHandlers) Sync(localRecords []*models.Record) (map[string]string, error) {
-	if !h.isAuthenticated {
-		return nil, errors.New("not authenticated")
+// UpdateServerRecordList is a method of the ServerHandlers struct used to update the server record list
+// This method fetches server records from ServerClient and stores them in storage
+func (h *ServerHandlers) UpdateServerRecordList() error {
+	serverRecords, err := h.ServerClient.ListRecords()
+	if err != nil {
+		return err
 	}
-
-	ids := make(map[string]string, len(localRecords))
-
-	for _, record := range localRecords {
-		if !record.HasServerID() {
-
-			// TODO: get serverID and save record
-			serverID := fmt.Sprintf("server_%s", record.ID)
-
-		
-			ids[record.ID] = serverID
-		}
-	}
-
-	return  ids,nil
+	h.storage.SetServerRecords(serverRecords)
+	return nil
 }
 
-// GetServerURL returns the server URL.
-func (h *ServerHandlers) GetServerURL() string {
-	return h.serverURL
-}
-
-// SetServerURL sets the server URL.
-func (h *ServerHandlers) SetServerURL(url string) {
-	h.serverURL = url
-}
-
-func (h *ServerHandlers) LocalRecordMovedToServer(record *models.Record)(string, error){
-	return  "", errors.New("server record moved to local not implemented")
+func (h *ServerHandlers) DownloadFile(recordID string, savePath string) (chan int, chan error) {
+	return h.ServerClient.DownloadFile(recordID, savePath)
 }

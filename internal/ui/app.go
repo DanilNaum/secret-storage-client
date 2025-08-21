@@ -39,12 +39,13 @@ type serverHandlers interface {
 
 	RefreshServerRecord(id string) (*models.Record, error)
 
-	Sync([]*models.Record) (map[string]string, error)
+	UpdateServerRecordList() error
 
 	GetCachedRecord(id string) (*models.Record, bool, time.Time, bool)
 	SetCachedRecord(id string, record *models.Record)
 
 	LocalRecordMovedToServer(record *models.Record) (string, error)
+	DownloadFile(recordID, savePath string) (chan int, chan error)
 }
 
 //go:generate moq -out pages_moq_test.go . pages
@@ -162,8 +163,8 @@ func (a *App) createServerPanel() *tview.Flex {
 	a.updateServerList()
 
 	serverButtons := tview.NewFlex().SetDirection(tview.FlexColumn)
-	syncBtn := tview.NewButton(constants.SyncButton).SetSelectedFunc(func() {
-		a.syncRecords()
+	syncBtn := tview.NewButton(constants.UpdateServerRecordListButton).SetSelectedFunc(func() {
+		a.updateServerRecordList()
 	})
 	serverButtons.AddItem(syncBtn, 0, 1, false)
 
@@ -280,16 +281,23 @@ func (a *App) showServerRecordDetails(index int) {
 		a.showError(err.Error())
 		return
 	}
+	
 
 	if record != nil {
 		record.IsServer = true
 		record.ServerID = serverRecord.ID
+		if record.Type == models.File && record.FilePath == "" {
+			a.downloadFileForm(record)
+			
+		}
 		a.serverHandlers.SetCachedRecord(serverRecord.ID, record)
 		a.currentRecord = record
 		a.currentIsServer = true
+		
 		a.displayRecordDetails(record, true, time.Now(), false)
 		a.updateServerList()
 	}
+	
 }
 
 func (a *App) displayRecordDetails(record *models.Record, isServer bool, cachedAt time.Time, expired bool) {
@@ -323,7 +331,11 @@ func (a *App) displayRecordDetails(record *models.Record, isServer bool, cachedA
 	case models.TextData:
 		content.WriteString(fmt.Sprintf(constants.DetailContentLabel, record.TextContent))
 	case models.File:
-		content.WriteString(fmt.Sprintf(constants.DetailFileLabel, record.FilePath))
+		if record.FilePath != "" {
+			content.WriteString(fmt.Sprintf(constants.DetailFileLabel, record.FilePath))
+		} else {
+			a.downloadFileForm( record)
+		}
 	}
 
 	a.detailsPanel.SetText(content.String())
@@ -454,6 +466,7 @@ func (a *App) copySelectedRecord() {
 			a.showError(err.Error())
 			return
 		}
+		
 		err = a.localHandlers.LocalRecordMovedToServer(a.currentRecord, serverID)
 		if err != nil {
 			a.showError(err.Error())
@@ -508,20 +521,30 @@ func (a *App) performDelete() {
 	}
 }
 
-func (a *App) syncRecords() {
-	localRecords := a.storage.GetLocalRecords()
-	serverIDs, err := a.serverHandlers.Sync(localRecords)
-	for _, localRecord := range localRecords{
-		localRecord.ServerID = serverIDs[localRecord.ID]
-	}
+// func (a *App) syncRecords() {
+// 	localRecords := a.storage.GetLocalRecords()
+// 	serverIDs, err := a.serverHandlers.Sync(localRecords)
+// 	for _, localRecord := range localRecords{
+// 		localRecord.ServerID = serverIDs[localRecord.ID]
+// 	}
+// 	if err != nil {
+// 		a.showError(err.Error())
+// 		return
+// 	}
+
+//		a.updateLocalList()
+//		a.updateServerList()
+//		a.updateListTitles()
+//	}
+func (a *App) updateServerRecordList() {
+	err := a.serverHandlers.UpdateServerRecordList()
 	if err != nil {
 		a.showError(err.Error())
 		return
 	}
 
-	a.updateLocalList()
 	a.updateServerList()
-	a.updateListTitles()
+
 }
 
 func (a *App) showError(message string) {

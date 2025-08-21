@@ -14,7 +14,7 @@ type StorageReader interface {
 // StorageWriter defines the interface for writing storage data.
 type StorageWriter interface {
 	AddLocalRecord(record *models.Record)
-	RemoveLocalRecord(index int) *models.Record
+	RemoveLocalRecord(id string) *models.Record
 	FindLocalRecordByServerID(serverID string) *models.Record
 	UpdateLocalRecordServerID(localID, serverID string) bool
 }
@@ -48,31 +48,32 @@ func (h *LocalHandlers) CreateRecord(record *models.Record) error {
 
 // DeleteLocalRecord deletes a local record.
 func (h *LocalHandlers) DeleteLocalRecord(record *models.Record) error {
-	localRecords := h.storage.GetLocalRecords()
-	for i, r := range localRecords {
-		if r.ID == record.ID {
-			h.writer.RemoveLocalRecord(i)
-			return nil
-		}
+	removedRecord := h.writer.RemoveLocalRecord(record.ID)
+	if removedRecord == nil {
+		return errors.New("local record not found")
 	}
-	return errors.New("local record not found")
+	return nil
 }
 
 // LocalRecordChange updates an existing local record.
 func (h *LocalHandlers) LocalRecordChange(record *models.Record) error {
-	localRecords := h.storage.GetLocalRecords()
-	for _, r := range localRecords {
-		if r.ID == record.ID {
-			*r = *record
-			return nil
-		}
+	// В новой реализации с картами мы не можем напрямую обновить запись,
+	// поэтому удалим старую и добавим новую
+	if h.writer.RemoveLocalRecord(record.ID) == nil {
+		return errors.New("local record not found")
 	}
-	return errors.New("local record not found")
+
+	// Добавляем обновленную запись
+	h.writer.AddLocalRecord(record)
+	return nil
 }
 
 // LocalRecordOpen loads a local record by ID.
 func (h *LocalHandlers) LocalRecordOpen(id string) (*models.Record, error) {
+	// Получаем все записи
 	localRecords := h.storage.GetLocalRecords()
+
+	// Ищем запись по ID
 	for _, r := range localRecords {
 		if r.ID == id {
 			return r, nil
@@ -90,6 +91,7 @@ func (h *LocalHandlers) LocalRecordMovedToServer(record *models.Record, serverID
 // ServerRecordMovedToLocal downloads a server record to local storage.
 func (h *LocalHandlers) ServerRecordMovedToLocal(record *models.Record) error {
 	if existingRecord := h.writer.FindLocalRecordByServerID(record.ServerID); existingRecord != nil {
+		// Обновляем существующую запись
 		existingRecord.Name = record.Name
 		existingRecord.Type = record.Type
 		existingRecord.Username = record.Username
@@ -97,10 +99,11 @@ func (h *LocalHandlers) ServerRecordMovedToLocal(record *models.Record) error {
 		existingRecord.TextContent = record.TextContent
 		existingRecord.FilePath = record.FilePath
 	} else {
+		// Создаем новую запись
 		newRecord := record.Clone()
 		newRecord.ServerID = record.ServerID
-		record.ID = ""
-		newRecord.IsServer = true
+		newRecord.ID = "" // ID будет сгенерирован при добавлении
+		newRecord.IsServer = false // Это локальная копия серверной записи
 		h.writer.AddLocalRecord(newRecord)
 	}
 

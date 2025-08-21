@@ -27,7 +27,7 @@ func (a *App) setupInputHandling() {
 				return nil
 
 			case tcell.KeyF2:
-				a.syncRecords()
+				a.updateServerRecordList()
 				return nil
 
 			case tcell.KeyF3:
